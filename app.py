@@ -26,6 +26,7 @@ sentiment_analyzer = pipeline("sentiment-analysis", model="distilbert-base-uncas
 zero_shot_classifier = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
 ner_pipeline = pipeline("ner", model="dslim/bert-base-uncased-finetuned-ner")
 summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
+emotion_analyzer = pipeline("text-classification", model="j-hartmann/emotion-english-distilroberta-base")
 
 print("Models loaded successfully!")
 
@@ -178,6 +179,38 @@ def extract_keywords():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/emotion', methods=['POST'])
+def detect_emotion():
+    """Detect emotions in text - NEW UNIQUE AI FEATURE"""
+    data = request.get_json()
+    text = data.get('text', '').strip()
+    
+    if not text:
+        return jsonify({'error': 'No text provided'}), 400
+    
+    if len(text) > 512:
+        text = text[:512]
+    
+    try:
+        result = emotion_analyzer(text)[0]
+        return jsonify({
+            'text': text,
+            'emotion': result['label'],
+            'confidence': round(result['score'], 4),
+            'analysis': f"The detected emotion is {result['label'].upper()} with {round(result['score']*100, 2)}% confidence.",
+            'emoji': {
+                'happy': '😊',
+                'sad': '😢',
+                'angry': '😠',
+                'neutral': '😐',
+                'fear': '😨',
+                'surprise': '😲',
+                'disgust': '🤢'
+            }.get(result['label'].lower(), '🤔')
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/analyze-all', methods=['POST'])
 def analyze_all():
     """Perform all text analyses"""
@@ -193,6 +226,9 @@ def analyze_all():
     try:
         # Sentiment
         sentiment = sentiment_analyzer(text)[0]
+        
+        # Emotion (NEW)
+        emotion = emotion_analyzer(text)[0]
         
         # Classification
         categories = ['technology', 'sports', 'politics', 'entertainment', 'science']
@@ -218,6 +254,10 @@ def analyze_all():
                 'label': sentiment['label'],
                 'confidence': round(sentiment['score'], 4)
             },
+            'emotion': {
+                'label': emotion['label'],
+                'confidence': round(emotion['score'], 4)
+            },
             'classification': {
                 'top_category': classification['labels'][0],
                 'score': round(classification['scores'][0], 4)
@@ -231,7 +271,7 @@ def analyze_all():
 @app.route('/health', methods=['GET'])
 def health():
     """Health check endpoint"""
-    return jsonify({'status': 'OK', 'message': 'Protordk API is running'})
+    return jsonify({'status': 'OK', 'message': 'Protordk API is running', 'version': '1.0.0'})
 
 # ==================== ERROR HANDLERS ====================
 
