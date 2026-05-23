@@ -1,287 +1,272 @@
-// Tab switching
-function switchTab(tabName) {
-    // Hide all tabs
-    const tabs = document.querySelectorAll('.tab-content');
-    tabs.forEach(tab => tab.classList.remove('active'));
+// Chart instances
+let sentimentChart = null;
+let emotionChart = null;
 
-    // Show selected tab
-    document.getElementById(tabName).classList.add('active');
+// Update character count
+document.getElementById('textInput').addEventListener('input', function() {
+    const count = this.value.length;
+    document.getElementById('charCount').textContent = count;
+    this.value = this.value.substring(0, 512);
+});
 
-    // Update button styles
-    const buttons = document.querySelectorAll('.tab-button');
-    buttons.forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
+// Scroll to analyzer
+function scrollToAnalyzer() {
+    document.getElementById('analyzer').scrollIntoView({ behavior: 'smooth' });
 }
 
-// Show loading state
-function showLoading(resultId) {
-    const result = document.getElementById(resultId);
-    result.classList.add('show');
-    result.innerHTML = '<p><span class="loading"></span> Processing...</p>';
+// Show loading spinner
+function showLoading() {
+    document.getElementById('loadingSpinner').classList.remove('hidden');
 }
 
-// Display result
-function displayResult(resultId, html) {
-    const result = document.getElementById(resultId);
-    result.classList.add('show');
-    result.innerHTML = html;
+// Hide loading spinner
+function hideLoading() {
+    document.getElementById('loadingSpinner').classList.add('hidden');
 }
 
-// Display error
-function displayError(resultId, error) {
-    const result = document.getElementById(resultId);
-    result.classList.add('show', 'error');
-    result.innerHTML = `<h3>Error</h3><p>${error}</p>`;
-}
-
-// Sentiment Analysis
-async function analyzeSentiment() {
-    const text = document.getElementById('sentimentText').value.trim();
+// Analyze text
+async function analyzeText() {
+    const text = document.getElementById('textInput').value.trim();
+    
     if (!text) {
-        displayError('sentimentResult', 'Please enter some text');
+        alert('Please enter some text to analyze');
         return;
     }
 
-    showLoading('sentimentResult');
+    showLoading();
+    const resultsSection = document.getElementById('resultsSection');
+    resultsSection.classList.add('hidden');
 
+    try {
+        // Sentiment Analysis
+        if (document.getElementById('sentimentCheck').checked) {
+            await analyzeSentiment(text);
+        }
+
+        // Emotion Detection
+        if (document.getElementById('emotionCheck').checked) {
+            await detectEmotion(text);
+        }
+
+        // Named Entities
+        if (document.getElementById('nerCheck').checked) {
+            await extractNER(text);
+        }
+
+        // Classification
+        if (document.getElementById('classifyCheck').checked) {
+            await classifyText(text);
+        }
+
+        // Keywords
+        if (document.getElementById('keywordsCheck').checked) {
+            await extractKeywords(text);
+        }
+
+        // Show results
+        resultsSection.classList.remove('hidden');
+        resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred during analysis. Please try again.');
+    } finally {
+        hideLoading();
+    }
+}
+
+// Sentiment Analysis
+async function analyzeSentiment(text) {
     try {
         const response = await fetch('/api/sentiment', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text })
         });
-
+        
         const data = await response.json();
+        const resultsDiv = document.getElementById('sentimentResults');
+        resultsDiv.classList.remove('hidden');
 
-        if (!response.ok) {
-            throw new Error(data.error);
-        }
+        // Create chart
+        if (sentimentChart) sentimentChart.destroy();
+        const ctx = document.getElementById('sentimentChartCanvas');
+        
+        const colors = {
+            'POSITIVE': '#4CAF50',
+            'NEGATIVE': '#F44336',
+            'NEUTRAL': '#FFC107'
+        };
 
-        const sentimentClass = `sentiment-${data.sentiment.toLowerCase()}`;
-        displayResult('sentimentResult', `
-            <h3>Sentiment Analysis Result</h3>
-            <p><strong>Sentiment:</strong> <span class="${sentimentClass}">${data.sentiment}</span></p>
-            <p><strong>Confidence:</strong> ${(data.confidence * 100).toFixed(2)}%</p>
-            <p><strong>Analysis:</strong> ${data.analysis}</p>
-        `);
+        sentimentChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: [data.sentiment],
+                datasets: [{
+                    data: [data.confidence * 100, (1 - data.confidence) * 100],
+                    backgroundColor: [colors[data.sentiment], '#E0E0E0'],
+                    borderColor: ['white', 'white'],
+                    borderWidth: 3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+
+        document.getElementById('sentimentText').innerHTML = `
+            <strong>Sentiment:</strong> ${data.sentiment}
+            <br>
+            <strong>Confidence:</strong> ${(data.confidence * 100).toFixed(2)}%
+            <br>
+            <em>${data.analysis}</em>
+        `;
     } catch (error) {
-        displayError('sentimentResult', error.message);
+        console.error('Sentiment analysis error:', error);
     }
 }
 
-// Text Classification
-async function classifyText() {
-    const text = document.getElementById('classifyText').value.trim();
-    const categories = document.getElementById('categories').value;
-
-    if (!text) {
-        displayError('classifyResult', 'Please enter some text');
-        return;
-    }
-
-    showLoading('classifyResult');
-
+// Emotion Detection
+async function detectEmotion(text) {
     try {
-        const response = await fetch('/api/classify', {
+        const response = await fetch('/api/emotion', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text, categories })
+            body: JSON.stringify({ text })
         });
-
+        
         const data = await response.json();
+        const resultsDiv = document.getElementById('emotionResults');
+        resultsDiv.classList.remove('hidden');
 
-        if (!response.ok) {
-            throw new Error(data.error);
-        }
+        document.getElementById('emotionDisplay').innerHTML = data.emoji || '🤔';
 
-        let categoriesHtml = '';
-        data.labels.forEach((label, index) => {
-            categoriesHtml += `<p><strong>${label}:</strong> ${(data.scores[index] * 100).toFixed(2)}%</p>`;
+        // Create chart
+        if (emotionChart) emotionChart.destroy();
+        const ctx = document.getElementById('emotionChartCanvas');
+        
+        emotionChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: [data.emotion],
+                datasets: [{
+                    label: 'Confidence',
+                    data: [data.confidence * 100],
+                    backgroundColor: '#667eea',
+                    borderRadius: 8,
+                    borderSkipped: false
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: true,
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
         });
-
-        displayResult('classifyResult', `
-            <h3>Text Classification Result</h3>
-            <p><strong>Top Category:</strong> ${data.top_category}</p>
-            <p><strong>Confidence:</strong> ${(data.top_score * 100).toFixed(2)}%</p>
-            <h4>All Classifications:</h4>
-            ${categoriesHtml}
-        `);
     } catch (error) {
-        displayError('classifyResult', error.message);
+        console.error('Emotion detection error:', error);
     }
 }
 
 // Named Entity Recognition
-async function extractEntities() {
-    const text = document.getElementById('nerText').value.trim();
-
-    if (!text) {
-        displayError('nerResult', 'Please enter some text');
-        return;
-    }
-
-    showLoading('nerResult');
-
+async function extractNER(text) {
     try {
         const response = await fetch('/api/ner', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text })
         });
-
+        
         const data = await response.json();
+        const resultsDiv = document.getElementById('nerResults');
+        resultsDiv.classList.remove('hidden');
+        const content = document.getElementById('nerContent');
+        content.innerHTML = '';
 
-        if (!response.ok) {
-            throw new Error(data.error);
-        }
-
-        let entitiesHtml = '<h4>Extracted Entities:</h4>';
         for (const [type, entities] of Object.entries(data.entities)) {
-            entitiesHtml += `<p><strong>${type}:</strong> `;
             entities.forEach(entity => {
-                entitiesHtml += `<span class="entity-badge">${entity.text}</span>`;
+                const tag = document.createElement('span');
+                tag.className = 'entity-tag';
+                tag.innerHTML = `<span class="entity-type">${type}</span> ${entity.text}`;
+                content.appendChild(tag);
             });
-            entitiesHtml += '</p>';
         }
-
-        displayResult('nerResult', `
-            <h3>Named Entity Recognition Result</h3>
-            <p><strong>Total Entities Found:</strong> ${data.entity_count}</p>
-            ${entitiesHtml}
-        `);
     } catch (error) {
-        displayError('nerResult', error.message);
+        console.error('NER error:', error);
     }
 }
 
-// Text Summarization
-async function summarizeText() {
-    const text = document.getElementById('summarizeText').value.trim();
-    const maxLength = parseInt(document.getElementById('maxLength').value);
-    const minLength = parseInt(document.getElementById('minLength').value);
-
-    if (!text) {
-        displayError('summarizeResult', 'Please enter some text');
-        return;
-    }
-
-    showLoading('summarizeResult');
-
+// Text Classification
+async function classifyText(text) {
     try {
-        const response = await fetch('/api/summarize', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text, max_length: maxLength, min_length: minLength })
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.error);
-        }
-
-        displayResult('summarizeResult', `
-            <h3>Text Summarization Result</h3>
-            <p><strong>Original Length:</strong> ${data.original_length} words</p>
-            <p><strong>Summary Length:</strong> ${data.summary_length} words</p>
-            <p><strong>Reduction:</strong> ${((1 - data.summary_length / data.original_length) * 100).toFixed(2)}%</p>
-            <h4>Summary:</h4>
-            <p>${data.summary}</p>
-        `);
-    } catch (error) {
-        displayError('summarizeResult', error.message);
-    }
-}
-
-// Keyword Extraction
-async function extractKeywords() {
-    const text = document.getElementById('keywordsText').value.trim();
-    const numKeywords = parseInt(document.getElementById('numKeywords').value);
-
-    if (!text) {
-        displayError('keywordsResult', 'Please enter some text');
-        return;
-    }
-
-    showLoading('keywordsResult');
-
-    try {
-        const response = await fetch('/api/keywords', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text, num_keywords: numKeywords })
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.error);
-        }
-
-        let keywordsHtml = '';
-        data.keywords.forEach(keyword => {
-            keywordsHtml += `<span class="keyword-badge">${keyword}</span>`;
-        });
-
-        displayResult('keywordsResult', `
-            <h3>Keyword Extraction Result</h3>
-            <p><strong>Keywords Found:</strong> ${data.keyword_count}</p>
-            <p>${keywordsHtml}</p>
-        `);
-    } catch (error) {
-        displayError('keywordsResult', error.message);
-    }
-}
-
-// Complete Analysis
-async function analyzeAll() {
-    const text = document.getElementById('analyzeAllText').value.trim();
-
-    if (!text) {
-        displayError('analyzeAllResult', 'Please enter some text');
-        return;
-    }
-
-    showLoading('analyzeAllResult');
-
-    try {
-        const response = await fetch('/api/analyze-all', {
+        const response = await fetch('/api/classify', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text })
         });
-
+        
         const data = await response.json();
+        const resultsDiv = document.getElementById('classifyResults');
+        resultsDiv.classList.remove('hidden');
+        const content = document.getElementById('classifyContent');
+        content.innerHTML = '';
 
-        if (!response.ok) {
-            throw new Error(data.error);
-        }
-
-        let entitiesHtml = '';
-        for (const [type, entities] of Object.entries(data.entities)) {
-            entitiesHtml += `<p><strong>${type}:</strong> ${entities.join(', ')}</p>`;
-        }
-
-        let keywordsHtml = '';
-        data.keywords.forEach(keyword => {
-            keywordsHtml += `<span class="keyword-badge">${keyword}</span>`;
+        data.labels.forEach((label, index) => {
+            const tag = document.createElement('span');
+            tag.className = 'category-tag';
+            tag.textContent = `${label} (${(data.scores[index] * 100).toFixed(1)}%)`;
+            content.appendChild(tag);
         });
-
-        displayResult('analyzeAllResult', `
-            <h3>Complete Text Analysis</h3>
-            <h4>Sentiment Analysis</h4>
-            <p><strong>Sentiment:</strong> ${data.sentiment.label} (${(data.sentiment.confidence * 100).toFixed(2)}%)</p>
-            
-            <h4>Text Classification</h4>
-            <p><strong>Category:</strong> ${data.classification.top_category} (${(data.classification.score * 100).toFixed(2)}%)</p>
-            
-            <h4>Named Entities</h4>
-            ${entitiesHtml || '<p>No entities found</p>'}
-            
-            <h4>Keywords</h4>
-            <p>${keywordsHtml}</p>
-        `);
     } catch (error) {
-        displayError('analyzeAllResult', error.message);
+        console.error('Classification error:', error);
     }
 }
+
+// Keyword Extraction
+async function extractKeywords(text) {
+    try {
+        const response = await fetch('/api/keywords', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text })
+        });
+        
+        const data = await response.json();
+        const resultsDiv = document.getElementById('keywordsResults');
+        resultsDiv.classList.remove('hidden');
+        const content = document.getElementById('keywordsContent');
+        content.innerHTML = '';
+
+        data.keywords.forEach(keyword => {
+            const tag = document.createElement('span');
+            tag.className = 'keyword-tag';
+            tag.textContent = keyword;
+            content.appendChild(tag);
+        });
+    } catch (error) {
+        console.error('Keywords error:', error);
+    }
+}
+
+// Allow Enter key to analyze
+document.getElementById('textInput').addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'Enter') {
+        analyzeText();
+    }
+});

@@ -3,78 +3,195 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Protordk - AI Text Analysis</title>
+    <title>Protordk - AI-Powered Text Analysis</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>🤖 Protordk</h1>
-            <p>Advanced AI-Powered Text Analysis</p>
-        </header>
-
-        <nav class="tabs">
-            <button class="tab-button active" onclick="switchTab('sentiment')">Sentiment</button>
-            <button class="tab-button" onclick="switchTab('classify')">Classify</button>
-            <button class="tab-button" onclick="switchTab('ner')">Entities</button>
-            <button class="tab-button" onclick="switchTab('summarize')">Summarize</button>
-            <button class="tab-button" onclick="switchTab('keywords')">Keywords</button>
-            <button class="tab-button" onclick="switchTab('analyze-all')">All Analysis</button>
+        <!-- Navigation -->
+        <nav class="navbar">
+            <div class="navbar-content">
+                <div class="logo">
+                    <i class="fas fa-brain"></i>
+                    <span>Protordk</span>
+                </div>
+                <div class="nav-links">
+                    <a href="#features">Features</a>
+                    <a href="#api">API</a>
+                    <a href="https://github.com/dharshananand4/Protordk" target="_blank">GitHub</a>
+                </div>
+            </div>
         </nav>
 
-        <!-- Sentiment Analysis -->
-        <div id="sentiment" class="tab-content active">
-            <h2>Sentiment Analysis</h2>
-            <textarea id="sentimentText" placeholder="Enter text to analyze sentiment..."></textarea>
-            <button onclick="analyzeSentiment()">Analyze Sentiment</button>
-            <div id="sentimentResult" class="result"></div>
-        </div>
-
-        <!-- Text Classification -->
-        <div id="classify" class="tab-content">
-            <h2>Text Classification</h2>
-            <textarea id="classifyText" placeholder="Enter text to classify..."></textarea>
-            <input type="text" id="categories" placeholder="Categories (comma-separated)" value="technology,sports,politics,entertainment,science">
-            <button onclick="classifyText()">Classify Text</button>
-            <div id="classifyResult" class="result"></div>
-        </div>
-
-        <!-- Named Entity Recognition -->
-        <div id="ner" class="tab-content">
-            <h2>Named Entity Recognition</h2>
-            <textarea id="nerText" placeholder="Enter text to extract entities..."></textarea>
-            <button onclick="extractEntities()">Extract Entities</button>
-            <div id="nerResult" class="result"></div>
-        </div>
-
-        <!-- Text Summarization -->
-        <div id="summarize" class="tab-content">
-            <h2>Text Summarization</h2>
-            <textarea id="summarizeText" placeholder="Enter text to summarize (minimum 50 words)..."></textarea>
-            <div class="input-group">
-                <label>Max Length: <input type="number" id="maxLength" value="100" min="30" max="200"></label>
-                <label>Min Length: <input type="number" id="minLength" value="30" min="10" max="100"></label>
+        <!-- Hero Section -->
+        <section class="hero">
+            <div class="hero-content">
+                <h1>Advanced AI Text Analysis</h1>
+                <p>Analyze sentiment, emotions, entities, and more with state-of-the-art AI models</p>
+                <div class="hero-buttons">
+                    <button class="btn btn-primary" onclick="scrollToAnalyzer()">Get Started</button>
+                    <a href="https://github.com/dharshananand4/Protordk" class="btn btn-secondary" target="_blank">View on GitHub</a>
+                </div>
             </div>
-            <button onclick="summarizeText()">Summarize</button>
-            <div id="summarizeResult" class="result"></div>
+        </section>
+
+        <!-- Main Analyzer Section -->
+        <section class="analyzer-section" id="analyzer">
+            <div class="analyzer-container">
+                <h2>Text Analysis Hub</h2>
+                
+                <!-- Input Area -->
+                <div class="input-area">
+                    <textarea id="textInput" placeholder="Enter your text here... (max 512 characters)" rows="5"></textarea>
+                    <div class="char-count">
+                        <span id="charCount">0</span> / 512
+                    </div>
+                </div>
+
+                <!-- Analysis Options -->
+                <div class="analysis-options">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="sentimentCheck" checked>
+                        <span><i class="fas fa-face-smile"></i> Sentiment</span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="emotionCheck" checked>
+                        <span><i class="fas fa-heart"></i> Emotion</span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="nerCheck">
+                        <span><i class="fas fa-tag"></i> Entities</span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="classifyCheck">
+                        <span><i class="fas fa-list"></i> Classification</span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="keywordsCheck">
+                        <span><i class="fas fa-key"></i> Keywords</span>
+                    </label>
+                </div>
+
+                <!-- Analyze Button -->
+                <button class="btn btn-analyze" onclick="analyzeText()">
+                    <span id="analyzeText">Analyze Text</span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </section>
+
+        <!-- Loading Spinner -->
+        <div id="loadingSpinner" class="loading-spinner hidden">
+            <div class="spinner">
+                <div class="spinner-circle"></div>
+                <p>Analyzing your text...</p>
+            </div>
         </div>
 
-        <!-- Keyword Extraction -->
-        <div id="keywords" class="tab-content">
-            <h2>Keyword Extraction</h2>
-            <textarea id="keywordsText" placeholder="Enter text to extract keywords..."></textarea>
-            <label>Number of Keywords: <input type="number" id="numKeywords" value="10" min="1" max="20"></label>
-            <button onclick="extractKeywords()">Extract Keywords</button>
-            <div id="keywordsResult" class="result"></div>
-        </div>
+        <!-- Results Section -->
+        <section class="results-section hidden" id="resultsSection">
+            <div class="results-container">
+                <!-- Sentiment Results -->
+                <div id="sentimentResults" class="result-card hidden">
+                    <h3><i class="fas fa-face-smile"></i> Sentiment Analysis</h3>
+                    <div class="sentiment-content">
+                        <div id="sentimentChart" style="max-width: 300px; margin: 20px auto;">
+                            <canvas id="sentimentChartCanvas"></canvas>
+                        </div>
+                        <div id="sentimentText" class="sentiment-text"></div>
+                    </div>
+                </div>
 
-        <!-- All Analysis -->
-        <div id="analyze-all" class="tab-content">
-            <h2>Complete Text Analysis</h2>
-            <textarea id="analyzeAllText" placeholder="Enter text for complete analysis..."></textarea>
-            <button onclick="analyzeAll()">Analyze All</button>
-            <div id="analyzeAllResult" class="result"></div>
-        </div>
+                <!-- Emotion Results -->
+                <div id="emotionResults" class="result-card hidden">
+                    <h3><i class="fas fa-heart"></i> Emotion Detection</h3>
+                    <div class="emotion-content">
+                        <div id="emotionDisplay" class="emotion-display"></div>
+                        <div id="emotionChart" style="max-width: 300px; margin: 20px auto;">
+                            <canvas id="emotionChartCanvas"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Named Entities Results -->
+                <div id="nerResults" class="result-card hidden">
+                    <h3><i class="fas fa-tag"></i> Named Entities</h3>
+                    <div id="nerContent" class="entities-content"></div>
+                </div>
+
+                <!-- Classification Results -->
+                <div id="classifyResults" class="result-card hidden">
+                    <h3><i class="fas fa-list"></i> Text Classification</h3>
+                    <div id="classifyContent" class="classify-content"></div>
+                </div>
+
+                <!-- Keywords Results -->
+                <div id="keywordsResults" class="result-card hidden">
+                    <h3><i class="fas fa-key"></i> Keywords</h3>
+                    <div id="keywordsContent" class="keywords-content"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Section -->
+        <section class="features-section" id="features">
+            <h2>Powerful Features</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-face-smile"></i>
+                    </div>
+                    <h3>Sentiment Analysis</h3>
+                    <p>Detect positive, negative, or neutral sentiment with confidence scores</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-heart"></i>
+                    </div>
+                    <h3>Emotion Detection</h3>
+                    <p>Identify emotions: happy, sad, angry, neutral, fear, surprise, disgust</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-tag"></i>
+                    </div>
+                    <h3>Entity Recognition</h3>
+                    <p>Extract people, places, organizations, and other entities from text</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-compress"></i>
+                    </div>
+                    <h3>Text Summarization</h3>
+                    <p>Generate concise summaries of long documents automatically</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-key"></i>
+                    </div>
+                    <h3>Keyword Extraction</h3>
+                    <p>Identify the most important keywords and topics in your text</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-list"></i>
+                    </div>
+                    <h3>Classification</h3>
+                    <p>Categorize text into custom categories using zero-shot learning</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>&copy; 2026 Protordk. Made with <i class="fas fa-heart"></i> by Dharshan Anand</p>
+            <div class="social-links">
+                <a href="https://github.com/dharshananand4" target="_blank"><i class="fab fa-github"></i></a>
+                <a href="https://linkedin.com/in/dharshananand4" target="_blank"><i class="fab fa-linkedin"></i></a>
+            </div>
+        </footer>
     </div>
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
